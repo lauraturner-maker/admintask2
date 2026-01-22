@@ -73,6 +73,7 @@
             text-decoration: none; 
             border-bottom: 1px dotted #333; 
             cursor: pointer;
+            display: inline-block; /* Helps with click targets */
         }
         .task-title a:hover { 
             color: var(--accent); 
@@ -102,16 +103,14 @@
     </div>
 
 <script>
-    // --- 1. Hardcoded Data from Image ---
-    // Note: If 'app.staffbase.com' is not your exact tenant domain, 
-    // these might be treated as external links. 
-    // Ideally, use relative paths like "/content/mypage" if possible.
+    // --- 1. Hardcoded Data (With the specific URL you requested) ---
     const taskData = [
         {
             group: "Reset Spotlight Features",
             name: "Spotlight Feature Listing",
             due: "1/26/26",
-            desc: "",
+            desc: "Click link to view planogram",
+            // The full URL you provided:
             url: "https://app.staffbase.com/content/page/69715a72452d193867cf7a22"
         },
         {
@@ -141,36 +140,25 @@
             due: "2/1/26",
             desc: "",
             url: "https://app.staffbase.com/content/page/69715a72452d193867cf7a22"
-        },
-        {
-            group: "Update Store Discounts",
-            name: "Promotional List - Book - Changes",
-            due: "2/1/26",
-            desc: "",
-            url: "https://app.staffbase.com/content/page/69715a72452d193867cf7a22"
         }
     ];
 
-    // --- 2. Robust Navigation Handler ---
-    function navigateTo(e, url) {
-        e.preventDefault(); // Stop default anchor behavior immediately
-        
-        console.log("Attempting to navigate to:", url);
-
-        // Method A: Try to change the Parent Window location (The "In-App" way)
-        // This works if the widget is on the same domain or if permissions allow.
+    // --- 2. URL Cleaning Utility ---
+    // This removes "https://app.staffbase.com" so the link becomes relative (e.g. "/content/page/...")
+    // This allows the link to work on ANY Staffbase subdomain (BAM, internal, etc)
+    function cleanStaffbaseUrl(fullUrl) {
+        if (!fullUrl) return '';
         try {
-            if (window.top && window.top !== window.self) {
-                window.top.location.href = url;
-                return;
+            // If it's a Staffbase link, we strip the domain to keep it "In-App"
+            if (fullUrl.includes('staffbase.com') || fullUrl.includes('/content/')) {
+                const urlObj = new URL(fullUrl);
+                // Return just the pathname + search params (e.g. /content/page/123?v=1)
+                return urlObj.pathname + urlObj.search;
             }
-        } catch (err) {
-            console.log("Blocked from accessing top frame (CORS). Trying fallback.");
+            return fullUrl; // Return original if it's external (like Google)
+        } catch (e) {
+            return fullUrl; // Fallback for malformed URLs
         }
-
-        // Method B: Fallback to window.open
-        // We use '_blank' which mobile apps often intercept to open in their internal browser.
-        window.open(url, '_blank');
     }
 
     // --- 3. Render Logic ---
@@ -198,14 +186,11 @@
                 // Link Generation
                 let titleHtml = task.name;
                 if (task.url) {
-                    // We use onclick to force our custom handler
-                    // We also add class="default-link-handling" which Staffbase sometimes looks for
-                    titleHtml = `
-                        <a href="${task.url}" 
-                           class="default-link-handling" 
-                           onclick="navigateTo(event, '${task.url}')">
-                           ${task.name}
-                        </a>`;
+                    const relativeUrl = cleanStaffbaseUrl(task.url);
+                    
+                    // We use target="_top" combined with the RELATIVE URL.
+                    // This forces the main window to navigate to the path on its own domain.
+                    titleHtml = `<a href="${relativeUrl}" target="_top">${task.name}</a>`;
                 }
 
                 html += `
